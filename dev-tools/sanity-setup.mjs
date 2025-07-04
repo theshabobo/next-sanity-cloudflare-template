@@ -56,7 +56,7 @@ const templatePath = path.join(__dirname, 'sanity-template');
     process.exit(1);
   }
 
-  // Step 2 – Install Sanity
+  // Step 2 – Install Sanity (No TypeScript)
   const fullCommand = [
     'npm',
     'create',
@@ -68,7 +68,6 @@ const templatePath = path.join(__dirname, 'sanity-template');
     'production',
     '--template',
     'clean',
-    '--typescript',
     '--output-path',
     outputPath
   ];
@@ -144,6 +143,19 @@ export default defineConfig({
 `;
   await fs.outputFile(path.join(outputPath, 'sanity.config.js'), sanityConfig);
   console.log('✅ Wrote sanity.config.js');
+
+  // Step 6 – Deploy Sanity Studio
+  console.log('\n🌐 Deploying Sanity Studio...');
+  try {
+    await execa('npx', ['sanity', 'deploy'], {
+      cwd: outputPath,
+      stdio: 'inherit'
+    });
+    console.log('\n✅ Sanity Studio deployed successfully.');
+  } catch {
+    console.error('❌ Sanity deploy failed.');
+    process.exit(1);
+  }
 
   console.log('\n🎉 Sanity Studio setup complete.\n');
 })();
