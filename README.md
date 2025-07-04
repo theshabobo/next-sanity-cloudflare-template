@@ -1,1 +1,0 @@
-# next-sanity-cloudflare-template
