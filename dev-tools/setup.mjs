@@ -1,0 +1,102 @@
+import inquirer from 'inquirer';
+import { execa } from 'execa';
+import fs from 'fs-extra';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// Resolve __dirname in ES module scope
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+(async () => {
+  console.log('\n🚀 Welcome to the Project Setup Wizard!\n');
+
+  const {
+    siteName,
+    githubUser,
+    createRepo,
+    sanityProjectId,
+    sanityDataset,
+    cloudflareToken
+  } = await inquirer.prompt([
+    { name: 'siteName', message: 'Project name (e.g. your-project.com):' },
+    { name: 'githubUser', message: 'Your GitHub username:' },
+    { type: 'confirm', name: 'createRepo', message: 'Create a GitHub repo for this project?', default: true },
+    { name: 'sanityProjectId', message: 'Sanity Project ID:' },
+    { name: 'sanityDataset', message: 'Sanity Dataset:', default: 'production' },
+    { name: 'cloudflareToken', message: 'Cloudflare API Token (optional):', mask: '*' }
+  ]);
+
+  const targetPath = path.join(__dirname, '..', siteName);
+  const templateRepo = 'https://github.com/theshabobo/next-sanity-cloudflare-template.git';
+
+  console.log(`\n📦 Cloning template into: ${siteName}`);
+  await execa('git', ['clone', templateRepo, targetPath]);
+
+  // Remove .git so we can re-init the new project
+  await fs.remove(path.join(targetPath, '.git'));
+
+  // Inject .env.local into /site
+  const envPath = path.join(targetPath, 'site', '.env.local');
+  await fs.outputFile(envPath, `NEXT_PUBLIC_SANITY_PROJECT_ID=${sanityProjectId}
+NEXT_PUBLIC_SANITY_DATASET=${sanityDataset}
+`);
+
+  // Inject wrangler.jsonc config
+  const wranglerPath = path.join(targetPath, 'site', 'wrangler.jsonc');
+  await fs.outputFile(wranglerPath, `{
+  "name": "${siteName.replace(/\W+/g, '-')}-worker",
+  "compatibility_date": "2024-01-01",
+  "vars": {
+    "SANITY_PROJECT_ID": "${sanityProjectId}",
+    "SANITY_DATASET": "${sanityDataset}"
+  }
+}
+`);
+
+  // Init Git and commit
+  console.log('\n📁 Initializing Git...');
+  await execa('git', ['init'], { cwd: targetPath });
+  await execa('git', ['add', '.'], { cwd: targetPath });
+  await execa('git', ['commit', '-m', 'Initial project scaffold'], { cwd: targetPath });
+
+  if (createRepo) {
+    console.log('🐙 Creating and pushing to GitHub...');
+    await execa('gh', ['repo', 'create', `${githubUser}/${siteName}`, '--public', '--source=.', '--remote=origin', '--push'], {
+      cwd: targetPath,
+      stdio: 'inherit'
+    });
+  }
+
+  // Create manual setup checklist
+  const checklist = `
+# ✅ Manual Setup Steps for ${siteName}
+
+## 🧠 Sanity
+
+1. Go to https://sanity.io/manage
+2. Open your project ID: \`${sanityProjectId}\`
+3. Start the studio:
+   \`cd sanity && npm install && npm run dev\`
+
+## 🌐 Cloudflare
+
+1. Run: \`wrangler login\` (if not already)
+2. Add secret: \`npx wrangler secret put SANITY_TOKEN\`
+3. Build & deploy:
+   \`cd site\`
+   \`npx opennextjs-cloudflare build\`
+   \`npx wrangler deploy .open-next/worker.js --experimental-json-config\`
+
+## 🖥 Local Dev
+
+- Frontend: \`cd site && npm install && npm run dev\`
+- Studio:   \`cd sanity && npm run dev\`
+`;
+
+  await fs.outputFile(path.join(targetPath, 'README_MANUAL_STEPS.md'), checklist);
+
+  console.log(`\n✅ Done! Your new project is ready at:\n${targetPath}`);
+  console.log(`📄 See README_MANUAL_STEPS.md for next steps.\n`);
+})();
