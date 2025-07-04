@@ -33,7 +33,6 @@ const __dirname = dirname(__filename);
 
   console.log(`\n📦 Cloning template into: ${siteName}`);
   await execa('git', ['clone', templateRepo, targetPath]);
-
   await fs.remove(path.join(targetPath, '.git'));
 
   const envPath = path.join(targetPath, 'site', '.env.local');
@@ -97,6 +96,23 @@ NEXT_PUBLIC_SANITY_DATASET=${sanityDataset}
     process.exit(1);
   }
 
+  // ✅ Run next-setup.mjs with all args
+  console.log('\n🌐 Launching Next.js setup script...');
+  const nextSetupPath = path.join(__dirname, 'next-setup.mjs');
+
+  try {
+    await execa('node', [
+      nextSetupPath,
+      '--projectName', siteName,
+      '--basePath', targetPath
+    ], { stdio: 'inherit' });
+    console.log('\n✅ Next.js app setup completed.\n');
+  } catch (err) {
+    console.error('\n❌ Next.js setup failed. Exiting...\n');
+    process.exit(1);
+  }
+
+  // Manual checklist
   const checklist = `
 # ✅ Manual Setup Steps for ${siteName}
 
