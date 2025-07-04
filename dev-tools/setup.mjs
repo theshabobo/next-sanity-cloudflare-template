@@ -1,3 +1,4 @@
+// setup.mjs
 import inquirer from 'inquirer';
 import { execa } from 'execa';
 import fs from 'fs-extra';
@@ -5,7 +6,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
-// Resolve __dirname in ES module scope
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -34,16 +34,13 @@ const __dirname = dirname(__filename);
   console.log(`\n📦 Cloning template into: ${siteName}`);
   await execa('git', ['clone', templateRepo, targetPath]);
 
-  // Remove .git so we can re-init the new project
   await fs.remove(path.join(targetPath, '.git'));
 
-  // Inject .env.local into /site
   const envPath = path.join(targetPath, 'site', '.env.local');
   await fs.outputFile(envPath, `NEXT_PUBLIC_SANITY_PROJECT_ID=${sanityProjectId}
 NEXT_PUBLIC_SANITY_DATASET=${sanityDataset}
 `);
 
-  // Inject wrangler.jsonc config
   const wranglerPath = path.join(targetPath, 'site', 'wrangler.jsonc');
   await fs.outputFile(wranglerPath, `{
   "name": "${siteName.replace(/\W+/g, '-')}-worker",
@@ -55,21 +52,51 @@ NEXT_PUBLIC_SANITY_DATASET=${sanityDataset}
 }
 `);
 
-  // Init Git and commit
   console.log('\n📁 Initializing Git...');
   await execa('git', ['init'], { cwd: targetPath });
+
+  console.log('🔐 Marking project as a safe Git directory...');
+  await execa('git', [
+    'config',
+    '--global',
+    '--add',
+    'safe.directory',
+    targetPath.replace(/\\/g, '/')
+  ]);
+
   await execa('git', ['add', '.'], { cwd: targetPath });
   await execa('git', ['commit', '-m', 'Initial project scaffold'], { cwd: targetPath });
 
   if (createRepo) {
     console.log('🐙 Creating and pushing to GitHub...');
-    await execa('gh', ['repo', 'create', `${githubUser}/${siteName}`, '--public', '--source=.', '--remote=origin', '--push'], {
-      cwd: targetPath,
-      stdio: 'inherit'
-    });
+    await execa('gh', [
+      'repo',
+      'create',
+      `${githubUser}/${siteName}`,
+      '--public',
+      '--source=.',
+      '--remote=origin',
+      '--push'
+    ], { cwd: targetPath, stdio: 'inherit' });
   }
 
-  // Create manual setup checklist
+  // ✅ Run sanity-setup.mjs with all args
+  console.log('\n🧠 Launching Sanity setup script...');
+  const sanitySetupPath = path.join(__dirname, 'sanity-setup.mjs');
+
+  try {
+    await execa('node', [
+      sanitySetupPath,
+      '--projectId', sanityProjectId,
+      '--basePath', targetPath,
+      '--projectName', siteName
+    ], { stdio: 'inherit' });
+    console.log('\n✅ Sanity setup completed.\n');
+  } catch (err) {
+    console.error('\n❌ Sanity setup failed. Exiting...\n');
+    process.exit(1);
+  }
+
   const checklist = `
 # ✅ Manual Setup Steps for ${siteName}
 
