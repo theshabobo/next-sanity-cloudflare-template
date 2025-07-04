@@ -1,7 +1,7 @@
-// sanity-setup.mjs
 import { execa } from 'execa';
 import fs from 'fs-extra';
 import path from 'path';
+import inquirer from 'inquirer';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { argv } from 'process';
@@ -25,21 +25,18 @@ if (!sanityProjectId || sanityProjectId.length < 5) {
   console.error('❌ Missing or invalid --projectId');
   process.exit(1);
 }
-
 if (!fs.existsSync(basePath)) {
   console.error('❌ Invalid --basePath: Directory does not exist.');
   process.exit(1);
 }
-
 if (!projectName || projectName.trim().length === 0) {
   console.error('❌ Missing or invalid --projectName');
   process.exit(1);
 }
 
-// Strip domain extension
-const studioHost = projectName.replace(/\.[^/.]+$/, '');
-const title = studioHost;
-
+// Derive values
+const studioHostRaw = projectName.replace(/\.[^/.]+$/, '');
+const title = studioHostRaw;
 const outputPath = path.join(basePath, 'sanity');
 const templatePath = path.join(__dirname, 'sanity-template');
 
@@ -56,7 +53,7 @@ const templatePath = path.join(__dirname, 'sanity-template');
     process.exit(1);
   }
 
-  // Step 2 – Install Sanity (No TypeScript)
+  // Step 2 – Install Sanity (no TypeScript)
   const fullCommand = [
     'npm',
     'create',
@@ -74,7 +71,6 @@ const templatePath = path.join(__dirname, 'sanity-template');
 
   console.log(`📦 Installing Sanity Studio at: ${outputPath}`);
   console.log(`📋 Running command:\n${fullCommand.join(' ')}\n`);
-
   try {
     await execa(fullCommand[0], fullCommand.slice(1), { stdio: 'inherit' });
     console.log('\n✅ Sanity Studio created successfully.');
@@ -109,7 +105,7 @@ export default defineCliConfig({
     projectId: '${sanityProjectId}',
     dataset: 'production'
   },
-  studioHost: '${studioHost}',
+  studioHost: '${studioHostRaw}',
   autoUpdates: true,
 })
 `;
@@ -144,10 +140,35 @@ export default defineConfig({
   await fs.outputFile(path.join(outputPath, 'sanity.config.js'), sanityConfig);
   console.log('✅ Wrote sanity.config.js');
 
-  // Step 6 – Deploy Sanity Studio
-  console.log('\n🌐 Deploying Sanity Studio...');
+  // Step 6 – Confirm Studio Hostname
+  let finalStudioHost = studioHostRaw;
+  console.log(`\n🌐 Checking if studio host "${finalStudioHost}" is available...`);
+
   try {
-    await execa('npx', ['sanity', 'deploy'], {
+    const result = await execa('npx', ['sanity', 'deploy', '--dry-run', '--host', finalStudioHost], {
+      cwd: outputPath
+    });
+
+    if (result.stdout.includes('already taken')) {
+      const { newHost } = await inquirer.prompt([
+        {
+          name: 'newHost',
+          message: `Studio hostname "${finalStudioHost}" is taken. Enter a new one:`,
+          default: `${finalStudioHost}-${Math.floor(Math.random() * 1000)}`
+        }
+      ]);
+      finalStudioHost = newHost;
+    } else {
+      console.log(`✅ Studio hostname "${finalStudioHost}" is available.`);
+    }
+  } catch (err) {
+    console.warn('⚠️ Skipping hostname check (dry-run failed), using fallback...');
+  }
+
+  // Step 7 – Deploy Studio
+  console.log(`\n🚀 Deploying Sanity Studio to: https://${finalStudioHost}.sanity.studio`);
+  try {
+    await execa('npx', ['sanity', 'deploy', '--host', finalStudioHost], {
       cwd: outputPath,
       stdio: 'inherit'
     });
