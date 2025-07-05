@@ -12,7 +12,7 @@ export default function SiteSettingsLayout({ children }) {
 
   useEffect(() => {
     async function verify() {
-      const paid = await checkSitePayment('your-project.com'); // You can pass this in as prop if needed
+      const paid = await checkSitePayment('your-project.com');
       setIsPaid(paid !== false);
       setChecked(true);
     }
