@@ -1,0 +1,104 @@
+.disabledWrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1d1d1da6, #3a3838);
+  padding: 2rem;
+  text-align: center;
+}
+
+.content {
+  position: relative;
+  max-width: 600px;
+  width: 100%;
+  background: #111;
+  padding: 2rem;
+  border-radius: 10px;
+  box-shadow: 0 0 25px rgba(0, 0, 0, 0.5);
+  z-index: 1;
+  overflow: hidden;
+}
+
+/* Glowing animated backdrop */
+.content::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120%;
+  height: 120%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(127, 0, 255, 0.4), transparent 70%);
+  filter: blur(50px);
+  z-index: -1;
+  animation: glowPulse 4s ease-in-out infinite;
+  border-radius: 50%;
+}
+
+@keyframes glowPulse {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.6;
+  }
+}
+
+.logoCircle {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: #222;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+
+.logoText {
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: linear-gradient(to right, #00bfff, #7f00ff);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.logoImageWrapper {
+  margin-bottom: 1rem;
+  display: none;
+}
+
+.logoImage {
+  border-radius: 50%;
+}
+
+.title {
+  font-size: 1.75rem;
+  margin: 1rem 0;
+  color: #fff;
+}
+
+.message {
+  white-space: pre-line;
+  color: #ccc;
+  margin-bottom: 1.5rem;
+}
+
+.contactBox p {
+  margin: 0.5rem 0;
+}
+
+.contactBox a {
+  color: #00bfff;
+  text-decoration: underline;
+}
+

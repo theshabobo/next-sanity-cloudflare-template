@@ -1,0 +1,49 @@
+:root {
+  /* Typography */
+
+  /* – Title Sizes */
+  --title-xl: 3.5rem;     
+  --title-lg: 2.5rem;    
+  --title-md: 2.0rem;     
+
+  /* - Subtitle Sizes */
+  --subtitle-lg: 1.75rem; 
+  --subtitle-md: 1.5rem;
+  --subtitle-sm: 1.25rem; 
+
+  /* - Body Text */
+  --text-body: 1.15rem;
+
+  /* - Font Colors */
+  --text-primary: #ffffff;        /* Main body and heading text */
+  --text-secondary: #cccccc;      /* Subtle/deemphasized text */
+  --text-accent: #ff5ec6;         /* For interactive or highlighted text */
+  --text-link: #4da6ff;           /* Link color */
+  --text-muted: #888888;          /* Used for placeholder or minor UI elements */
+  --text-inverse: #000000;        /* For light backgrounds (e.g., buttons) */
+
+  --color-card-bg: #111;
+}
+
+@media (max-width: 767px) {
+  :root {
+    /* Shrink title sizes for phones */
+    --title-xl: 2.25rem;
+    --title-lg: 1.75rem;
+    --title-md: 1.5rem;
+
+    /* Shrink subtitle sizes */
+    --subtitle-lg: 1.5rem;
+    --subtitle-md: 1.25rem;
+    --subtitle-sm: 1.1rem;
+
+    /* Smaller body text */
+    --text-body: 1rem;
+  }
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}

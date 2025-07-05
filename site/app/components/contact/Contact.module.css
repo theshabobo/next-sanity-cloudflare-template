@@ -1,0 +1,406 @@
+.contactPage {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 0rem;
+  color: var(--text-secondary);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* HERO SECTION */
+.hero {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.hero h1 {
+  font-size: var(--title-lg);
+  font-weight: bold;
+  color: var(--text-primary);
+}
+
+.hero p {
+  font-size: var(--subtitle-lg);
+  color: var(--text-secondary);
+  margin-top: 1rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
+}
+
+/* GRID SECTION */
+.gridSection {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+}
+
+@media (min-width: 768px) {
+  .gridSection {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+}
+
+.leftColumn,
+.rightColumn {
+  flex: 1;
+}
+
+.rightColumn {
+  margin-top: 4rem;
+}
+
+/* FORM STYLING */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.form label {
+  display: flex;
+  flex-direction: column;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.input,
+.textarea {
+  background-color: #0f0f0f;
+  border: 1px solid #333;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: var(--text-body);
+  color: var(--text-primary);
+  margin-top: 0.5rem;
+}
+
+.input:focus,
+.textarea:focus {
+  border-color: #7f00ff;
+  box-shadow: 0 0 0 2px rgba(127, 0, 255, 0.3);
+  outline: none;
+}
+
+.fieldset {
+  border: none;
+  padding: 0;
+  padding-top: 0.5rem;
+  margin: 0;
+  display: flex;
+  gap: 1rem;
+}
+
+.fieldset label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.fieldset input[type="radio"] {
+  display: none;
+}
+
+.fieldset span {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  padding: 0.6rem 1.5rem;
+  border-radius: 8px;
+  color: #aaa;
+  font-weight: 500;
+  transition: all 0.25s ease;
+  display: inline-block;
+  text-align: center;
+  min-width: 80px;
+}
+
+.fieldset input[type="radio"]:checked + span {
+  background: linear-gradient(to right, #7f00ff, #4e00c2);
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 0 8px rgba(127, 0, 255, 0.4);
+  border: 1px solid transparent;
+}
+
+.fieldset span:hover {
+  border-color: #7f00ff;
+  color: #ddd;
+}
+
+
+
+.turnstile {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+.cf-turnstile {
+  display: block;
+  margin: 0 auto;
+}
+
+.button {
+  margin-top: 1rem;
+  background: linear-gradient(to right, #7f00ff, #4e00c2);
+  color: var(--text-primary);
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: var(--text-body);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(127, 0, 255, 0.5);
+}
+
+/* CONTACT INFO */
+.contactInfo {
+  margin-top: 2rem;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.contactInfo h3 {
+  font-size: var(--subtitle-lg);
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.contactInfo p {
+  margin: 0;
+  font-size: var(--subtitle-sm);
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.contactInfo a {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.socialIcons {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  font-size: 2rem;
+  margin-top: 2rem;
+}
+
+.socialIcons a {
+  color: #bbbbbb;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.socialIcons a:hover {
+  transform: scale(1.2);
+  color: var(--text-link);
+}
+
+/* MAP SECTION */
+.mapSection {
+  margin-top: 5rem;
+  text-align: center;
+}
+
+.mapSection h2 {
+  font-size: var(--title-md);
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.mapButton {
+  display: inline-block;
+  margin-top: 1rem;
+  color: var(--text-link);
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.mapButton:hover {
+  color: var(--text-accent);
+}
+
+/* PROFILE IMAGE */
+.profileImageWrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.profileImage {
+  width: 220px;
+  height: 220px;
+  object-fit: cover;
+  border-radius: 50%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  border: 4px solid rgba(127, 0, 255, 0.4);
+}
+
+
+/* -------------------- MEDIA QUERIES -------------------- */
+
+/* Max Width 1024px */
+@media (max-width: 1024px) {
+  .contactPage {
+    padding: 2rem 2rem;
+  }
+
+  .gridSection {
+    gap: 2rem;
+  }
+
+  .rightColumn {
+    margin-top: 2rem;
+  }
+}
+
+/* Max Width 768px */
+@media (max-width: 768px) {
+  .gridSection {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .leftColumn,
+  .rightColumn {
+    width: 100%;
+  }
+
+  .leftColumn h2 {
+    text-align: center;
+  }
+
+  .form label {
+    text-align: left;
+  }
+
+  .contactInfo {
+    margin-left: 0;
+    margin-right: 0;
+    align-items: center;
+    text-align: center;
+  }
+
+  .contactInfo h3 {
+    text-align: center;
+  }
+
+  .socialIcons {
+    justify-content: center;
+  }
+
+  .profileImageWrapper {
+    justify-content: center;
+  }
+}
+
+/* Max Width 425px */
+@media (max-width: 425px) {
+  .hero h1 {
+    font-size: var(--title-md);
+  }
+
+  .hero p {
+    font-size: var(--subtitle-md);
+    padding: 0 1rem;
+  }
+
+  .form label {
+    font-size: var(--text-body);
+  }
+
+  .fieldset {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .fieldset span {
+    min-width: 100px;
+  }
+
+  .contactInfo {
+    font-size: var(--text-body);
+  }
+
+  .socialIcons {
+    font-size: 1.75rem;
+  }
+
+  .button {
+    font-size: var(--text-body);
+    padding: 0.65rem 1.25rem;
+  }
+}
+
+/* Max Width 375px */
+@media (max-width: 375px) {
+  .profileImage {
+    width: 180px;
+    height: 180px;
+  }
+
+  .hero h1 {
+    font-size: 1.8rem;
+  }
+
+  .hero p {
+    font-size: 1rem;
+  }
+
+  .contactInfo h3 {
+    font-size: 1.25rem;
+  }
+
+  .contactInfo p {
+    font-size: 0.95rem;
+  }
+}
+
+/* Max Width 320px */
+@media (max-width: 320px) {
+  .profileImage {
+    width: 160px;
+    height: 160px;
+  }
+
+  .hero h1 {
+    font-size: 1.6rem;
+  }
+
+  .hero p {
+    font-size: 0.95rem;
+  }
+
+  .contactInfo p {
+    font-size: 0.9rem;
+  }
+
+  .button {
+    font-size: 0.9rem;
+  }
+}
+
+.successMessage {
+  margin-top: 1rem;
+  background-color: #2dff91;
+  color: #000;
+  font-weight: 600;
+  padding: 1rem;
+  border-radius: 6px;
+  text-align: center;
+}
