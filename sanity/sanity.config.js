@@ -7,9 +7,9 @@ import deskStructure from './deskStructure';
 
 export default defineConfig({
   name: 'default',
-  title: 'theodore-miller',
+  title: 'your-project',
 
-  projectId: 'ogrckg5g',
+  projectId: 'xxxxxxxx',
   dataset: 'production',
 
   plugins: [
