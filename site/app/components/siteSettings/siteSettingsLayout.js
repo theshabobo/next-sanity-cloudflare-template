@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { checkSitePayment } from './checkSitePayment';
-import Header from '../Header'; // If there is a header
-import Footer from '../Footer'; // If there is a footer
+// import Header from '../Header'; // If there is a header
+// import Footer from '../Footer'; // If there is a footer
 import SiteSettingsFallback from './siteSettingsFallback';
 
 export default function SiteSettingsLayout({ children }) {
