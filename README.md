@@ -140,11 +140,11 @@ After setup, you’ll need to manually configure Cloudflare Pages using the foll
 
 ## 📄 License
 
-MIT — free for commercial and personal use.
+MIT — free for commercial and personal use with credit given.
 
 ---
 
 ## 🧠 Credits
 
-Created by [TC](https://github.com/theshabobo)  
+Created by [Theodore Miller](https://theodore-miller.com)  
 Contributions welcome. PRs and issues encouraged!
