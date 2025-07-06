@@ -1,119 +1,176 @@
-import { execa } from 'execa';
 import fs from 'fs-extra';
 import path from 'path';
-import inquirer from 'inquirer';
+import readline from 'readline/promises';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { argv } from 'process';
+import { execaCommand } from 'execa';
+
+// Step 0 — Parse CLI arguments
+const args = Object.fromEntries(process.argv.slice(2).map(arg => {
+  const [key, ...rest] = arg.split('=');
+  return [key, rest.join('=')];
+}));
+
+const sanityProjectId = args.sanityProjectId;
+const sanityDataset = args.sanityDataset;
+const projectNameRoot = args.projectNameRoot;
+const projectName = args.projectName;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Parse CLI args
-const args = {};
-argv.forEach((val, idx) => {
-  if (val.startsWith('--')) {
-    args[val.replace('--', '')] = argv[idx + 1];
+const basePath = path.resolve(__dirname, '..', projectNameRoot);
+const sanityPath = path.join(basePath, 'sanity');
+const sanityTempPath = path.join(basePath, 'sanity-temp');
+
+// Step 1 — Prompt login to Sanity CLI
+try {
+  console.log('\n🔐 Logging into Sanity...');
+  await execaCommand('sanity logout', { stdio: 'inherit', shell: true }); // Force logout first
+  await execaCommand('sanity login', { stdio: 'inherit', shell: true });
+  console.log('✅ Logged into Sanity CLI');
+} catch (err) {
+  console.error('❌ Failed to log in to Sanity:', err);
+  process.exit(1);
+}
+
+// Step 2 — Rename existing sanity to sanity-temp
+try {
+  if (await fs.pathExists(sanityPath)) {
+    await fs.move(sanityPath, sanityTempPath, { overwrite: true });
+    console.log(`📁 Renamed 'sanity' → 'sanity-temp'`);
+  } else {
+    console.warn(`⚠️ No existing sanity folder found`);
   }
-});
-
-const sanityProjectId = args.projectId;
-const basePath = args.basePath;
-const projectName = args.projectName;
-
-if (!sanityProjectId || sanityProjectId.length < 5) {
-  console.error('❌ Missing or invalid --projectId');
-  process.exit(1);
-}
-if (!fs.existsSync(basePath)) {
-  console.error('❌ Invalid --basePath: Directory does not exist.');
-  process.exit(1);
-}
-if (!projectName || projectName.trim().length === 0) {
-  console.error('❌ Missing or invalid --projectName');
+} catch (err) {
+  console.error('❌ Failed to rename sanity folder:', err);
   process.exit(1);
 }
 
-// Derive values
-const studioHostRaw = projectName.replace(/\.[^/.]+$/, '');
-const title = studioHostRaw;
-const outputPath = path.join(basePath, 'sanity');
-const templatePath = path.join(__dirname, 'sanity-template');
+// Step 3 — Prompt user to disable TypeScript
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+console.log('\n❗ Manual step required');
+console.log('   A prompt will appear from the Sanity CLI.');
+console.log('   You must choose **"No"** when asked about using TypeScript.');
+console.log(`   Also, select npm when prompted.`);
+await rl.question('⏳ Press Enter to begin Sanity installation... ');
+rl.close();
 
-(async () => {
-  console.log('\n🧠 Sanity Studio Setup\n');
-
-  // Step 1 – Login
-  console.log('🔐 Logging into Sanity...');
-  try {
-    await execa('sanity', ['login'], { stdio: 'inherit' });
-    console.log('✅ Logged into Sanity.\n');
-  } catch {
-    console.error('❌ Sanity login failed.');
-    process.exit(1);
+// Step 4 — Install Sanity
+try {
+  if (await fs.pathExists(sanityPath)) {
+    await fs.remove(sanityPath);
+    console.log('🗑️ Removed old /sanity folder before install');
   }
 
-  // Step 2 – Install Sanity (no TypeScript)
-  const fullCommand = [
-    'npm',
-    'create',
-    'sanity@latest',
-    '--',
-    '--project',
-    sanityProjectId,
-    '--dataset',
-    'production',
-    '--template',
-    'clean',
-    '--output-path',
-    outputPath
+  const cmd = `npm create sanity@latest -- --project ${sanityProjectId} --dataset ${sanityDataset} --template clean --output-path sanity`;
+
+  await execaCommand(cmd, {
+    cwd: basePath,
+    stdio: 'inherit',
+    shell: true
+  });
+
+  console.log('✅ Sanity installed in /sanity');
+} catch (err) {
+  console.error('❌ Failed to install Sanity:', err);
+  process.exit(1);
+}
+
+// Step 5 — Remove leftover TypeScript files
+try {
+  const filesToRemove = [
+    'sanity.config.ts',
+    'tsconfig.json',
+    'types/schema.ts',
   ];
 
-  console.log(`📦 Installing Sanity Studio at: ${outputPath}`);
-  console.log(`📋 Running command:\n${fullCommand.join(' ')}\n`);
-  try {
-    await execa(fullCommand[0], fullCommand.slice(1), { stdio: 'inherit' });
-    console.log('\n✅ Sanity Studio created successfully.');
-  } catch {
-    console.error('❌ Failed to create Sanity Studio.');
-    process.exit(1);
-  }
-
-  // Step 3 – Copy custom files
-  const filesToCopy = [
-    ['schemaTypes', 'index.js'],
-    ['.', 'deskStructure.js'],
-    ['.', 'eslint.config.js']
-  ];
-
-  for (const [subfolder, file] of filesToCopy) {
-    const src = path.join(templatePath, subfolder, file);
-    const dest = path.join(outputPath, subfolder, file);
-    try {
-      await fs.copy(src, dest);
-      console.log(`✅ Copied ${file}`);
-    } catch {
-      console.warn(`⚠️ Skipped ${file}: Source not found`);
+  for (const file of filesToRemove) {
+    const fullPath = path.join(sanityPath, file);
+    if (await fs.pathExists(fullPath)) {
+      await fs.remove(fullPath);
+      console.log(`🧹 Removed leftover TypeScript file: ${file}`);
     }
   }
 
-  // Step 4 – Write sanity.cli.js
-  const cliConfig = `import {defineCliConfig} from 'sanity/cli'
+  // Convert sanity.config.ts to .js if still exists
+  const configTs = path.join(sanityPath, 'sanity.config.ts');
+  const configJs = path.join(sanityPath, 'sanity.config.js');
+  if (await fs.pathExists(configTs)) {
+    let content = await fs.readFile(configTs, 'utf8');
+    content = content.replace(/\.ts/g, '.js');
+    await fs.writeFile(configJs, content, 'utf8');
+    await fs.remove(configTs);
+    console.log('🔁 Converted sanity.config.ts → .js');
+  }
+} catch (err) {
+  console.error('❌ Failed to remove or convert TypeScript files:', err);
+}
 
-export default defineCliConfig({
-  api: {
-    projectId: '${sanityProjectId}',
-    dataset: 'production'
-  },
-  studioHost: '${studioHostRaw}',
-  autoUpdates: true,
-})
-`;
-  await fs.outputFile(path.join(outputPath, 'sanity.cli.js'), cliConfig);
-  console.log('✅ Wrote sanity.cli.js');
+// Step 6 — Backup and overwrite with sanity-temp contents
+const backupPath = path.join(basePath, 'sanity-temp-files');
 
-  // Step 5 – Write sanity.config.js
-  const sanityConfig = `import {defineConfig} from 'sanity';
+try {
+  if (!(await fs.pathExists(sanityTempPath))) {
+    console.warn(`⚠️ sanity-temp folder does not exist. Skipping copy.`);
+  } else {
+    await fs.ensureDir(backupPath);
+    const files = await fs.readdir(sanityTempPath);
+
+    for (const item of files) {
+      const src = path.join(sanityTempPath, item);
+      const dest = path.join(sanityPath, item);
+      const backupDest = path.join(backupPath, item);
+
+      if (await fs.pathExists(dest)) {
+        await fs.copy(dest, backupDest, { overwrite: true });
+        console.log(`🛟 Backed up ${item} → sanity-temp-files`);
+      }
+
+      await fs.copy(src, dest, { overwrite: true });
+      console.log(`✅ Overwrote ${item} → sanity`);
+    }
+  }
+} catch (err) {
+  console.error('❌ Failed during backup and overwrite of sanity files:', err);
+  process.exit(1);
+}
+
+// Step 7 — Inject into sanity.cli.js
+try {
+  const cliFilePath = path.join(sanityPath, 'sanity.cli.js');
+
+  if (await fs.pathExists(cliFilePath)) {
+    let content = await fs.readFile(cliFilePath, 'utf8');
+
+    content = content.replace(/projectId:\s*['"`][^'"`]+['"`]/, `projectId: '${sanityProjectId}'`);
+    content = content.replace(/dataset:\s*['"`][^'"`]+['"`]/, `dataset: '${sanityDataset}'`);
+
+    if (content.includes('studioHost:')) {
+      content = content.replace(/studioHost:\s*['"`][^'"`]+['"`],?/, `studioHost: '${projectName}',`);
+    } else {
+      content = content.replace(
+        /(\s*)autoUpdates:\s*true,/,
+        `$1studioHost: '${projectName}',\n$1autoUpdates: true,`
+      );
+    }
+
+    await fs.writeFile(cliFilePath, content, 'utf8');
+    console.log(`🔧 Updated sanity.cli.js with projectId, dataset, and studioHost`);
+  } else {
+    console.warn(`⚠️ Could not find sanity.cli.js`);
+  }
+} catch (err) {
+  console.error('❌ Failed to update sanity.cli.js:', err);
+  process.exit(1);
+}
+
+// Step 8 — Rewrite sanity.config.js with correct structure
+try {
+  const configFilePath = path.join(sanityPath, 'sanity.config.js');
+
+  if (await fs.pathExists(configFilePath)) {
+    const updatedContent = `import {defineConfig} from 'sanity';
 import {structureTool} from 'sanity/structure';
 import {visionTool} from '@sanity/vision';
 import {deskTool} from 'sanity/desk';
@@ -122,10 +179,10 @@ import deskStructure from './deskStructure';
 
 export default defineConfig({
   name: 'default',
-  title: '${title}',
+  title: '${projectName}',
 
   projectId: '${sanityProjectId}',
-  dataset: 'production',
+  dataset: '${sanityDataset}',
 
   plugins: [
     deskTool({ structure: deskStructure }),
@@ -137,46 +194,42 @@ export default defineConfig({
   },
 });
 `;
-  await fs.outputFile(path.join(outputPath, 'sanity.config.js'), sanityConfig);
-  console.log('✅ Wrote sanity.config.js');
+    await fs.writeFile(configFilePath, updatedContent, 'utf8');
+    console.log(`🔧 Updated sanity.config.js with correct structure and injected variables`);
+  } else {
+    console.warn(`⚠️ sanity.config.js not found — skipping`);
+  }
+} catch (err) {
+  console.error('❌ Failed to update sanity.config.js:', err);
+  process.exit(1);
+}
 
-  // Step 6 – Confirm Studio Hostname
-  let finalStudioHost = studioHostRaw;
-  console.log(`\n🌐 Checking if studio host "${finalStudioHost}" is available...`);
-
-  try {
-    const result = await execa('npx', ['sanity', 'deploy', '--dry-run', '--host', finalStudioHost], {
-      cwd: outputPath
-    });
-
-    if (result.stdout.includes('already taken')) {
-      const { newHost } = await inquirer.prompt([
-        {
-          name: 'newHost',
-          message: `Studio hostname "${finalStudioHost}" is taken. Enter a new one:`,
-          default: `${finalStudioHost}-${Math.floor(Math.random() * 1000)}`
-        }
-      ]);
-      finalStudioHost = newHost;
-    } else {
-      console.log(`✅ Studio hostname "${finalStudioHost}" is available.`);
-    }
-  } catch (err) {
-    console.warn('⚠️ Skipping hostname check (dry-run failed), using fallback...');
+// Step 9 — Clean up temp folders
+try {
+  if (await fs.pathExists(sanityTempPath)) {
+    await fs.remove(sanityTempPath);
+    console.log(`🧹 Removed temporary folder: sanity-temp`);
   }
 
-  // Step 7 – Deploy Studio
-  console.log(`\n🚀 Deploying Sanity Studio to: https://${finalStudioHost}.sanity.studio`);
-  try {
-    await execa('npx', ['sanity', 'deploy', '--host', finalStudioHost], {
-      cwd: outputPath,
-      stdio: 'inherit'
-    });
-    console.log('\n✅ Sanity Studio deployed successfully.');
-  } catch {
-    console.error('❌ Sanity deploy failed.');
-    process.exit(1);
+  if (await fs.pathExists(backupPath)) {
+    await fs.remove(backupPath);
+    console.log(`🧹 Removed backup folder: sanity-temp-files`);
   }
+} catch (err) {
+  console.error('❌ Failed to clean up temporary folders:', err);
+  process.exit(1);
+}
 
-  console.log('\n🎉 Sanity Studio setup complete.\n');
-})();
+// Step 10 — Deploy Sanity Studio
+try {
+  console.log('\n🚀 Starting Sanity deploy...');
+  await execaCommand('sanity deploy', {
+    cwd: sanityPath,
+    stdio: 'inherit',
+    shell: true,
+  });   
+  console.log('✅ Sanity Studio deployed successfully');
+} catch (err) {
+  console.error('❌ Sanity deploy failed:', err);
+  process.exit(1);
+}

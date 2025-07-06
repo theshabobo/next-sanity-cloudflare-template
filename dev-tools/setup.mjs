@@ -1,145 +1,185 @@
 // setup.mjs
-import inquirer from 'inquirer';
-import { execa } from 'execa';
-import fs from 'fs-extra';
+import readline from 'readline/promises';
+import { stdin as input, stdout as output } from 'node:process';
 import path from 'path';
+import fs from 'fs-extra';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import { execa, execaCommand } from 'execa';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const rl = readline.createInterface({ input, output });
 
-(async () => {
-  console.log('\n🚀 Welcome to the Project Setup Wizard!\n');
+console.log('\n🌐 Website Setup: Initial Configuration\n');
 
-  const {
-    siteName,
-    githubUser,
-    createRepo,
-    sanityProjectId,
-    sanityDataset,
-    cloudflareToken
-  } = await inquirer.prompt([
-    { name: 'siteName', message: 'Project name (e.g. your-project.com):' },
-    { name: 'githubUser', message: 'Your GitHub username:' },
-    { type: 'confirm', name: 'createRepo', message: 'Create a GitHub repo for this project?', default: true },
-    { name: 'sanityProjectId', message: 'Sanity Project ID:' },
-    { name: 'sanityDataset', message: 'Sanity Dataset:', default: 'production' },
-    { name: 'cloudflareToken', message: 'Cloudflare API Token (optional):', mask: '*' }
-  ]);
+// Step 1 — Prompt user
+const projectNameRoot = await rl.question('🔤 Enter the full domain (e.g. construction-site.com): ');
+const githubUser = await rl.question('🐙 Enter your GitHub username: ');
+const createRepoAnswer = await rl.question('📦 Create GitHub repo? (Y/n): ');
+const createRepo = createRepoAnswer.trim().toLowerCase() !== 'n';
+const sanityProjectId = await rl.question('🧠 Enter your Sanity project ID: ');
+const sanityDataset = await rl.question('📁 Enter Sanity dataset (default: production): ') || 'production';
+const sanityApiToken = await rl.question('🔐 Enter your Sanity API token: ');
 
-  const targetPath = path.join(__dirname, '..', siteName);
-  const templateRepo = 'https://github.com/theshabobo/next-sanity-cloudflare-template.git';
+rl.close();
 
-  console.log(`\n📦 Cloning template into: ${siteName}`);
-  await execa('git', ['clone', templateRepo, targetPath]);
-  await fs.remove(path.join(targetPath, '.git'));
+// Step 2 — Strip extension from domain to get projectName
+const projectName = projectNameRoot.replace(/\..+$/, '');
 
-  const envPath = path.join(targetPath, 'site', '.env.local');
-  await fs.outputFile(envPath, `NEXT_PUBLIC_SANITY_PROJECT_ID=${sanityProjectId}
-NEXT_PUBLIC_SANITY_DATASET=${sanityDataset}
-`);
+// Step 3 — Show summary
+console.log('\n✅ Configuration complete:');
+console.log(`- Project Name Root: ${projectNameRoot}`);
+console.log(`- Project Name:      ${projectName}`);
+console.log(`- GitHub Username:   ${githubUser}`);
+console.log(`- Create Repo:       ${createRepo ? 'Yes' : 'No'}`);
+console.log(`- Sanity Project ID: ${sanityProjectId}`);
+console.log(`- Sanity Dataset:    ${sanityDataset}`);
+console.log(`- Sanity API Token:  ${'*'.repeat(sanityApiToken.length)} (hidden)`);
 
-  const wranglerPath = path.join(targetPath, 'site', 'wrangler.jsonc');
-  await fs.outputFile(wranglerPath, `{
-  "name": "${siteName.replace(/\W+/g, '-')}-worker",
-  "compatibility_date": "2024-01-01",
-  "vars": {
-    "SANITY_PROJECT_ID": "${sanityProjectId}",
-    "SANITY_DATASET": "${sanityDataset}"
-  }
+// Step 4 — Create new folder one level above current directory
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const parentDir = path.resolve(__dirname, '..');
+const projectDir = path.join(parentDir, projectNameRoot);
+
+try {
+  await fs.ensureDir(projectDir);
+  console.log(`\n📁 Created project directory at: ${projectDir}`);
+} catch (err) {
+  console.error('❌ Failed to create project directory:', err);
+  process.exit(1);
 }
-`);
 
-  console.log('\n📁 Initializing Git...');
-  await execa('git', ['init'], { cwd: targetPath });
+// Step 5 — Clone from GitHub and copy needed folders
+const tempCloneDir = path.join(parentDir, `${projectNameRoot}-temp`);
 
-  console.log('🔐 Marking project as a safe Git directory...');
-  await execa('git', [
-    'config',
-    '--global',
-    '--add',
-    'safe.directory',
-    targetPath.replace(/\\/g, '/')
-  ]);
+try {
+  console.log('\n⬇️ Cloning template repository...');
+  await execa('git', ['clone', '--depth=1', 'https://github.com/theshabobo/next-sanity-cloudflare-template.git', tempCloneDir], {
+    stdio: 'inherit'
+  });
 
-  await execa('git', ['add', '.'], { cwd: targetPath });
-  await execa('git', ['commit', '-m', 'Initial project scaffold'], { cwd: targetPath });
+  const foldersToCopy = ['sanity', 'site'];
+  for (const folder of foldersToCopy) {
+    const src = path.join(tempCloneDir, folder);
+    const dest = path.join(projectDir, folder);
 
-  if (createRepo) {
-    console.log('🐙 Creating and pushing to GitHub...');
-    await execa('gh', [
-      'repo',
-      'create',
-      `${githubUser}/${siteName}`,
-      '--public',
-      '--source=.',
-      '--remote=origin',
-      '--push'
-    ], { cwd: targetPath, stdio: 'inherit' });
+    if (await fs.pathExists(src)) {
+      await fs.copy(src, dest, { overwrite: true });
+      console.log(`📁 Copied '${folder}' → '${folder}'`);
+    } else {
+      console.warn(`⚠️ Folder not found in repo: ${folder}`);
+    }
   }
 
-  // ✅ Run sanity-setup.mjs with all args
-  console.log('\n🧠 Launching Sanity setup script...');
-  const sanitySetupPath = path.join(__dirname, 'sanity-setup.mjs');
+  await fs.remove(tempCloneDir);
+  console.log('🧹 Removed temporary cloned repo');
+} catch (err) {
+  console.error('❌ Git clone or folder copy failed:', err);
+  process.exit(1);
+}
 
+// Step 6 — Run next-setup.mjs with values
+const nextSetupPath = path.join(__dirname, 'next-setup.mjs');
+
+try {
+  console.log('\n▶️ Running next-setup.mjs...');
+
+  await execaCommand(
+    `node "${nextSetupPath}" projectNameRoot="${projectNameRoot}" projectName="${projectName}" sanityApiToken="${sanityApiToken}" sanityProjectId="${sanityProjectId}"`,
+    {
+      stdio: 'inherit',
+      shell: true
+    }
+  );
+} catch (err) {
+  console.error('❌ Failed to run next-setup.mjs:', err);
+  process.exit(1);
+}
+
+// Step 7 — Run sanity-setup.mjs with values
+const sanitySetupPath = path.join(__dirname, 'sanity-setup.mjs');
+
+try {
+  console.log('\n▶️ Running sanity-setup.mjs...');
+
+  await execaCommand(
+    `node "${sanitySetupPath}" sanityProjectId="${sanityProjectId}" sanityDataset="${sanityDataset}" projectNameRoot="${projectNameRoot}" projectName="${projectName}"`,
+    {
+      stdio: 'inherit',
+      shell: true
+    }
+  );
+} catch (err) {
+  console.error('❌ Failed to run sanity-setup.mjs:', err);
+  process.exit(1);
+}
+
+// Step 7.5 — Ensure no nested Git repos exist before GitHub setup
+try {
+  const nestedGitDirs = ['sanity/.git', 'site/.git', `${projectName}/.git`]; // support variable-based site name too
+
+  for (const gitDir of nestedGitDirs) {
+    const fullPath = path.join(projectDir, gitDir);
+    if (await fs.pathExists(fullPath)) {
+      await fs.remove(fullPath);
+      console.log(`🧼 Removed nested Git repo: ${gitDir}`);
+    }
+  }
+} catch (err) {
+  console.error('❌ Failed to clean nested .git directories:', err);
+  process.exit(1);
+}
+
+
+// Step 8 — GitHub Repo Creation & Initial Commit
+if (createRepo) {
   try {
-    await execa('node', [
-      sanitySetupPath,
-      '--projectId', sanityProjectId,
-      '--basePath', targetPath,
-      '--projectName', siteName
-    ], { stdio: 'inherit' });
-    console.log('\n✅ Sanity setup completed.\n');
+    console.log('\n🔐 Logging into GitHub...');
+    await execa('gh', ['auth', 'login'], {
+      stdio: 'inherit',
+    });
+
+    console.log(`\n📦 Creating new GitHub repo: ${githubUser}/${projectNameRoot}`);
+    await execa('gh', ['repo', 'create', `${githubUser}/${projectNameRoot}`, '--public', '--confirm'], {
+      cwd: projectDir,
+      stdio: 'inherit',
+    });
+
+    console.log('🔧 Initializing git...');
+    await execa('git', ['init'], { cwd: projectDir });
+    await execa('git', ['add', '.'], { cwd: projectDir });
+    await execa('git', ['commit', '-m', 'Initial project setup'], { cwd: projectDir });
+
+    console.log('🚀 Pushing to GitHub...');
+    await execa('git', ['branch', '-M', 'main'], { cwd: projectDir });
+    await execa('git', ['remote', 'add', 'origin', `https://github.com/${githubUser}/${projectNameRoot}.git`], {
+      cwd: projectDir,
+    });
+    await execa('git', ['push', '-u', 'origin', 'main'], { cwd: projectDir });
+
+    console.log('✅ Project pushed to GitHub successfully!');
   } catch (err) {
-    console.error('\n❌ Sanity setup failed. Exiting...\n');
+    console.error('❌ GitHub upload failed:', err);
     process.exit(1);
   }
+} else {
+  console.log('\n📦 GitHub upload skipped.');
+}
 
-  // ✅ Run next-setup.mjs with all args
-  console.log('\n🌐 Launching Next.js setup script...');
-  const nextSetupPath = path.join(__dirname, 'next-setup.mjs');
+// Step 9 — Display Cloudflare setup instructions
+console.clear();
+console.log(`\n🌩️  Step 9: Final Cloudflare Configuration\n`);
 
-  try {
-    await execa('node', [
-      nextSetupPath,
-      '--projectName', siteName,
-      '--basePath', targetPath
-    ], { stdio: 'inherit' });
-    console.log('\n✅ Next.js app setup completed.\n');
-  } catch (err) {
-    console.error('\n❌ Next.js setup failed. Exiting...\n');
-    process.exit(1);
-  }
+console.log(`🔐 In Cloudflare Pages → Project Settings → Environment Variables`);
+console.log(`   ➤ Add secret:`);
+console.log(`      SANITY_API_TOKEN=${sanityApiToken}`);
 
-  // Manual checklist
-  const checklist = `
-# ✅ Manual Setup Steps for ${siteName}
+console.log(`\n🔗 In Cloudflare Pages → Connect to Git Repository`);
+console.log(`   ➤ GitHub account: (use the one you selected)`);
+console.log(`   ➤ Repository:      ${githubUser}/${projectNameRoot}`);
+console.log(`   ➤ Branch:          main`);
+console.log(`   ➤ Root Directory:  /${projectName}`);
+console.log(`   ➤ Build Command:   npx opennextjs-cloudflare build`);
+console.log(`   ➤ Deploy Command:  npx wrangler deploy .open-next/worker.js --experimental-json-config`);
+console.log(`   ➤ Non-prod Branch Deploy Command:`);
+console.log(`      npx wrangler deploy .open-next/worker.js --experimental-json-config`);
 
-## 🧠 Sanity
-
-1. Go to https://sanity.io/manage
-2. Open your project ID: \`${sanityProjectId}\`
-3. Start the studio:
-   \`cd sanity && npm install && npm run dev\`
-
-## 🌐 Cloudflare
-
-1. Run: \`wrangler login\` (if not already)
-2. Add secret: \`npx wrangler secret put SANITY_TOKEN\`
-3. Build & deploy:
-   \`cd site\`
-   \`npx opennextjs-cloudflare build\`
-   \`npx wrangler deploy .open-next/worker.js --experimental-json-config\`
-
-## 🖥 Local Dev
-
-- Frontend: \`cd site && npm install && npm run dev\`
-- Studio:   \`cd sanity && npm run dev\`
-`;
-
-  await fs.outputFile(path.join(targetPath, 'README_MANUAL_STEPS.md'), checklist);
-
-  console.log(`\n✅ Done! Your new project is ready at:\n${targetPath}`);
-  console.log(`📄 See README_MANUAL_STEPS.md for next steps.\n`);
-})();
+console.log(`\n✅ Setup complete. You can now proceed with the Cloudflare dashboard configuration.`);
