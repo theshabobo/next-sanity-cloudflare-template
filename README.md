@@ -87,7 +87,7 @@ node setup.mjs
 
 You’ll be prompted for:
 
-- Domain name (e.g. `clanhavok.com`)
+- Domain name (e.g. `website.com`)
 - GitHub username
 - Whether to create a GitHub repo
 - Sanity project ID
