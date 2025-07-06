@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { checkSitePayment } from './checkSitePayment';
-import Header from '../Header'; // If there is a header
-import Footer from '../Footer'; // If there is a footer
+// import Header from '../Header'; // If there is a header
+// import Footer from '../Footer'; // If there is a footer
 import SiteSettingsFallback from './siteSettingsFallback';
 
 export default function SiteSettingsLayout({ children }) {
@@ -12,7 +12,7 @@ export default function SiteSettingsLayout({ children }) {
 
   useEffect(() => {
     async function verify() {
-      const paid = await checkSitePayment('your-project.com'); // You can pass this in as prop if needed
+      const paid = await checkSitePayment('your-project.com');
       setIsPaid(paid !== false);
       setChecked(true);
     }
